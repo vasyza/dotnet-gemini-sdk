@@ -51,28 +51,23 @@ namespace DotnetGeminiSDK.Requester
         /// <param name="url">Url to be requested</param>
         /// <param name="data">Data containing body to send</param>
         /// <param name="callback"> A callback to be called when the response is received</param>
-        public async Task PostStream(string url, object data, Action<string> callback)
+        private static async Task PostStream(string url, object data, Action<string> onData)
         {
-            var content = new StringContent(JsonConvert.SerializeObject(data), Encoding.UTF8, "application/json");
-
-            using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
-            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-
-            if (response.IsSuccessStatusCode)
+            var content = new StringContent(JsonConvert.SerializeObject(data),
+                                            Encoding.UTF8, "application/json");
+        
+            using var request  = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
+            using var response = await _httpClient.SendAsync(
+                                      request, HttpCompletionOption.ResponseHeadersRead);
+        
+            response.EnsureSuccessStatusCode();
+        
+            await using var sr = new StreamReader(await response.Content.ReadAsStreamAsync());
+            string? line;
+            while ((line = await sr.ReadLineAsync()) is not null)
             {
-                int bytesRead;
-                var buffer = new byte[8192];
-                using var responseStream = await response.Content.ReadAsStreamAsync();
-
-                while ((bytesRead = await responseStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-                {
-                    var chunk = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    callback(chunk);
-                }
-            }
-            else
-            {
-                throw new Exception("Unhandled error from API " + response.Content.ReadAsStreamAsync().Result);
+                if (line.StartsWith("data: "))
+                    onData(line.Substring(6));
             }
         }
 
