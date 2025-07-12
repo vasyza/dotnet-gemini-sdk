@@ -51,7 +51,7 @@ namespace DotnetGeminiSDK.Requester
         /// <param name="url">Url to be requested</param>
         /// <param name="data">Data containing body to send</param>
         /// <param name="callback"> A callback to be called when the response is received</param>
-        private static async Task PostStream(string url, object data, Action<string> onData)
+        private async Task PostStream(string url, object data, Action<string> callback)
         {
             var content = new StringContent(JsonConvert.SerializeObject(data),
                                             Encoding.UTF8, "application/json");
@@ -67,7 +67,7 @@ namespace DotnetGeminiSDK.Requester
             while ((line = await sr.ReadLineAsync()) is not null)
             {
                 if (line.StartsWith("data: "))
-                    onData(line.Substring(6));
+                    callback(line.Substring(6));
             }
         }
 
